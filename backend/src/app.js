@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const pool = require('./config/db');
 const errorHandler = require('./middlewares/errorHandler');
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 
@@ -20,7 +21,7 @@ app.get('/health/db', async (req, res, next) => {
     next(err);
   }
 });
-
+app.use('/auth', authRoutes);
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
