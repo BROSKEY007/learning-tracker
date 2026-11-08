@@ -17,3 +17,11 @@ exports.create = async ({ name, email, passwordHash }) => {
   );
   return rows[0];
 };
+
+exports.findById = async (id) => {
+  const { rows } = await pool.query(
+    'SELECT id, name, email, created_at FROM users WHERE id = $1',
+    [id]
+  );
+  return rows[0];
+};

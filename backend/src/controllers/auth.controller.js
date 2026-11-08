@@ -74,3 +74,15 @@ exports.login = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.me = async (req, res, next) => {
+  try {
+    const user = await userRepo.findById(req.user.id);
+    if (!user) {
+      throw new AppError('User no longer exists', 401);
+    }
+    res.json({ success: true, data: user });
+  } catch (err) {
+    next(err);
+  }
+};
