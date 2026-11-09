@@ -1,6 +1,6 @@
 import { getToken } from './auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '');
 
 export async function api(path, { method = 'GET', body, formData } = {}) {
   const headers = {};
