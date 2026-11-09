@@ -71,4 +71,5 @@ module.exports = {
   remove,
   findByEntryIds,
   findKeysByEntry,
+  countByEntry
 };
