@@ -1,5 +1,7 @@
 const entryRepo = require('../repositories/entry.repository');
 const AppError = require('../utils/AppError');
+const imageRepo = require('../repositories/image.repository');
+const storage = require('../utils/imageStorage');
 
 function cleanEntry({ topic, notes, entry_date }) {
   if (typeof topic !== 'string' || topic.trim() === '') {
@@ -26,12 +28,30 @@ function cleanEntry({ topic, notes, entry_date }) {
   };
 }
 
+async function attachImages(entries) {
+  if (entries.length === 0) return entries;
+
+  const rows = await imageRepo.findByEntryIds(entries.map((e) => e.id));
+
+  const imagesByEntry = {};
+  for (const row of rows) {
+    if (!imagesByEntry[row.entry_id]) imagesByEntry[row.entry_id] = [];
+    imagesByEntry[row.entry_id].push({
+      id: row.id,
+      url: await storage.getImageUrl(row.storage_key),
+    });
+  }
+
+  return entries.map((e) => ({ ...e, images: imagesByEntry[e.id] || [] }));
+}
+
 exports.getEntries = async (req, res, next) => {
   try {
     const search =
-      typeof req.query.search === 'string' ? req.query.search.trim() : '';  
+      typeof req.query.search === 'string' ? req.query.search.trim() : '';
     const entries = await entryRepo.findAllByUser(req.user.id, search);
-    res.json({ success: true, data: entries });
+    const data = await attachImages(entries);
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -41,7 +61,8 @@ exports.getEntry = async (req, res, next) => {
   try {
     const entry = await entryRepo.findByIdForUser(req.entryId, req.user.id);
     if (!entry) throw new AppError('Entry not found', 404);
-    res.json({ success: true, data: entry });
+    const [data] = await attachImages([entry]);
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -64,7 +85,8 @@ exports.updateEntry = async (req, res, next) => {
     const cleaned = cleanEntry(req.body);
     const entry = await entryRepo.update(req.entryId, req.user.id, cleaned);
     if (!entry) throw new AppError('Entry not found', 404);
-    res.json({ success: true, data: entry, message: 'Entry updated' });
+           const [data] = await attachImages([entry]);
+    res.json({ success: true, data, message: 'Entry updated' });
   } catch (err) {
     next(err);
   }
@@ -72,8 +94,13 @@ exports.updateEntry = async (req, res, next) => {
 
 exports.deleteEntry = async (req, res, next) => {
   try {
+    const keys = await imageRepo.findKeysByEntry(req.entryId, req.user.id);
+
     const deleted = await entryRepo.remove(req.entryId, req.user.id);
     if (!deleted) throw new AppError('Entry not found', 404);
+
+    await Promise.allSettled(keys.map((key) => storage.deleteImage(key)));
+
     res.json({ success: true, message: 'Entry deleted' });
   } catch (err) {
     next(err);

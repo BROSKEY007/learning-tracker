@@ -33,4 +33,33 @@ async function remove(imageId) {
   await pool.query('DELETE FROM entry_images WHERE id = $1', [imageId]);
 }
 
-module.exports = { entryBelongsToUser, create, findByIdForUser, remove };
+async function findByEntryIds(entryIds) {
+  const { rows } = await pool.query(
+    `SELECT id, entry_id, storage_key
+     FROM entry_images
+     WHERE entry_id = ANY($1::int[])
+     ORDER BY id`,
+    [entryIds]
+  );
+  return rows;
+}
+
+async function findKeysByEntry(entryId, userId) {
+  const { rows } = await pool.query(
+    `SELECT i.storage_key
+     FROM entry_images i
+     JOIN entries e ON e.id = i.entry_id
+     WHERE i.entry_id = $1 AND e.user_id = $2`,
+    [entryId, userId]
+  );
+  return rows.map((r) => r.storage_key);
+}
+
+module.exports = {
+  entryBelongsToUser,
+  create,
+  findByIdForUser,
+  remove,
+  findByEntryIds,
+  findKeysByEntry,
+};
