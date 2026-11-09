@@ -2,7 +2,7 @@ import { getToken } from './auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export async function api(path, { method = 'GET', body } = {}) {
+export async function api(path, { method = 'GET', body, formData } = {}) {
   const headers = {};
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -13,7 +13,7 @@ export async function api(path, { method = 'GET', body } = {}) {
     res = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: formData ? formData : body ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new Error('Cannot reach the server. Is the backend running?');
