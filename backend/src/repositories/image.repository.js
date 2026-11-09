@@ -55,6 +55,15 @@ async function findKeysByEntry(entryId, userId) {
   return rows.map((r) => r.storage_key);
 }
 
+async function countByEntry(entryId) {
+  const { rows } = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM entry_images WHERE entry_id = $1',
+    [entryId]
+  );
+  return rows[0].count;
+}
+
+
 module.exports = {
   entryBelongsToUser,
   create,

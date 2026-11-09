@@ -4,8 +4,9 @@ const pool = require('./config/db');
 const errorHandler = require('./middlewares/errorHandler');
 const authRoutes = require('./routes/auth.routes');
 const entryRoutes = require('./routes/entry.routes');
-
+const { authLimiter } = require('./middlewares/rateLimit');
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(express.json());
@@ -22,6 +23,9 @@ app.get('/health/db', async (req, res, next) => {
     next(err);
   }
 });
+
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', authLimiter);
 app.use('/auth', authRoutes);
 app.use('/entries', entryRoutes);
 app.use((req, res) => {
