@@ -35,24 +35,14 @@ export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [pageError, setPageError] = useState('');
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
-  function handleApiError(err) {
-    if (err.status === 401) {
-      clearToken();
-      router.replace('/login');
-    } else {
-      setPageError(err.message);
-    }
-  }
-
-  async function refreshEntries() {
-    try {
-      const res = await api('/entries');
-      setEntries(res.data);
-    } catch (err) {
-      handleApiError(err);
-    }
+  function reload() {
+    setReloadKey((k) => k + 1);
   }
 
   useEffect(() => {
@@ -60,13 +50,39 @@ export default function DashboardPage() {
       router.replace('/login');
       return;
     }
-    async function init() {
+    api('/auth/me')
+      .then((me) => setUser(me.data?.user || me.data || me.user))
+      .catch((err) => {
+        if (err.status === 401) {
+          clearToken();
+          router.replace('/login');
+        } else {
+          setPageError(err.message);
+        }
+      });
+  }, [router]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    let ignore = false;
+
+    async function load() {
       try {
-        const me = await api('/auth/me');
-        setUser(me.data?.user || me.data || me.user);
-        const list = await api('/entries');
-        setEntries(list.data);
+        const path = query
+          ? `/entries?search=${encodeURIComponent(query)}`
+          : '/entries';
+        const res = await api(path);
+        if (ignore) return;
+        setEntries(res.data);
+        setPageError('');
+        setLoaded(true);
       } catch (err) {
+        if (ignore) return;
         if (err.status === 401) {
           clearToken();
           router.replace('/login');
@@ -75,8 +91,12 @@ export default function DashboardPage() {
         }
       }
     }
-    init();
-  }, [router]);
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [router, query, reloadKey]);
 
   async function handleDelete(id) {
     if (!window.confirm('Delete this entry and its images?')) return;
@@ -84,7 +104,12 @@ export default function DashboardPage() {
       await api(`/entries/${id}`, { method: 'DELETE' });
       setEntries((current) => current.filter((e) => e.id !== id));
     } catch (err) {
-      handleApiError(err);
+      if (err.status === 401) {
+        clearToken();
+        router.replace('/login');
+      } else {
+        setPageError(err.message);
+      }
     }
   }
 
@@ -105,7 +130,7 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 pb-16">
-      <header className="bg-white shadow-sm">
+      <header className="sticky top-0 z-10 bg-white shadow-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
           <h1 className="text-lg font-bold text-indigo-600">Learning Tracker</h1>
           <div className="flex items-center gap-3">
@@ -121,7 +146,18 @@ export default function DashboardPage() {
       </header>
 
       <section className="mx-auto max-w-3xl space-y-8 px-4 py-8">
-        <EntryForm onCreated={refreshEntries} />
+        <EntryForm onCreated={reload} />
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold text-slate-800">Your entries</h2>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search topics and notes..."
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:w-72"
+          />
+        </div>
 
         {pageError && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -129,9 +165,13 @@ export default function DashboardPage() {
           </p>
         )}
 
-        {groups.length === 0 ? (
+        {!loaded ? (
+          <p className="text-center text-slate-500">Loading entries...</p>
+        ) : groups.length === 0 ? (
           <p className="text-center text-slate-500">
-            No entries yet. Write what you learned today!
+            {query
+              ? `No entries match "${query}"`
+              : 'No entries yet. Write what you learned today!'}
           </p>
         ) : (
           groups.map((group) => (
@@ -145,6 +185,7 @@ export default function DashboardPage() {
                     key={entry.id}
                     entry={entry}
                     onDelete={handleDelete}
+                    onChanged={reload}
                   />
                 ))}
               </div>

@@ -2,10 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { api } from '@/lib/api';
-
-const MAX_FILES = 5;
-const MAX_SIZE = 5 * 1024 * 1024;
-const TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+import { MAX_FILES, checkImages } from '@/lib/images';
 
 function todayString() {
   return new Date().toLocaleDateString('en-CA');
@@ -28,22 +25,14 @@ export default function EntryForm({ onCreated }) {
     return () => previews.forEach((url) => URL.revokeObjectURL(url));
   }, [previews]);
 
-  function handleFiles(e) {
+   function handleFiles(e) {
     const picked = Array.from(e.target.files);
     e.target.value = '';
     setError('');
 
-    const all = [...files, ...picked];
-    if (all.length > MAX_FILES) {
-      return setError(`You can add up to ${MAX_FILES} images`);
-    }
-    if (picked.some((f) => !TYPES.includes(f.type))) {
-      return setError('Only JPG, PNG, WEBP or GIF images are allowed');
-    }
-    if (picked.some((f) => f.size > MAX_SIZE)) {
-      return setError('Each image must be 5MB or smaller');
-    }
-    setFiles(all);
+    const problem = checkImages(files.length, picked);
+    if (problem) return setError(problem);
+    setFiles([...files, ...picked]);
   }
 
   function removeFile(index) {
