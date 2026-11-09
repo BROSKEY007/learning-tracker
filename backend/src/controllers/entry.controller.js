@@ -29,7 +29,7 @@ function cleanEntry({ topic, notes, entry_date }) {
 exports.getEntries = async (req, res, next) => {
   try {
     const search =
-      typeof req.query.search === 'string' ? req.query.search.trim() : '';
+      typeof req.query.search === 'string' ? req.query.search.trim() : '';  
     const entries = await entryRepo.findAllByUser(req.user.id, search);
     res.json({ success: true, data: entries });
   } catch (err) {
