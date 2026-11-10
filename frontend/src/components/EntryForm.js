@@ -84,14 +84,12 @@ export default function EntryForm({ onCreated }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 rounded-2xl bg-white p-5 shadow-sm"
+      className="entry-form space-y-4"
     >
-      <h2 className="text-lg font-semibold text-slate-800">
-        What did you learn today?
-      </h2>
+      <h2 className="sr-only">New learning entry</h2>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Topic</label>
+        <label className="block text-sm font-medium text-slate-700">Title</label>
         <input
           type="text"
           required
@@ -105,19 +103,19 @@ export default function EntryForm({ onCreated }) {
 
       <div>
         <label className="block text-sm font-medium text-slate-700">
-          Notes / details
+          Your notes
         </label>
         <textarea
           rows={4}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Write what you understood..."
+          placeholder="What clicked today? Add your notes, ideas, or takeaways..."
           className={inputClass}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Date</label>
+        <label className="block text-sm font-medium text-slate-700">Entry date</label>
         <input
           type="date"
           required
@@ -129,10 +127,10 @@ export default function EntryForm({ onCreated }) {
 
       <div>
         <p className="text-sm font-medium text-slate-700">
-          Images (optional, up to {MAX_FILES})
+          Screenshots (optional, up to {MAX_FILES})
         </p>
         <label className="mt-1 flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500 hover:border-indigo-400 hover:text-indigo-600">
-          + Add images
+          + Add screenshots
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
@@ -157,7 +155,7 @@ export default function EntryForm({ onCreated }) {
                   onClick={() => removeFile(i)}
                   className="absolute -right-1 -top-1 h-6 w-6 rounded-full bg-red-500 text-xs text-white"
                 >
-                  ×
+                  &times;
                 </button>
               </div>
             ))}
@@ -174,9 +172,9 @@ export default function EntryForm({ onCreated }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+        className="primary-button save-entry"
       >
-        {loading ? 'Saving...' : 'Save entry'}
+        {loading ? 'Saving...' : 'Save to journal'}
       </button>
     </form>
   );

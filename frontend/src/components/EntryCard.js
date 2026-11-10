@@ -1,10 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useLayoutEffect, useRef } from 'react';
+import { gsap } from 'gsap';
+import JournalCardContent from './JournalCardContent';
+import Icon from './Icon';
+import { useConfirm } from './ConfirmationProvider';
 import { api } from '@/lib/api';
 import { MAX_FILES, checkImages } from '@/lib/images';
 
-export default function EntryCard({ entry, onDelete, onChanged }) {
+export default function EntryCard({ entry, author, onDelete, onChanged }) {
+  const cardRef = useRef(null);
+  const confirm = useConfirm();
+  useLayoutEffect(() => {
+    if (!cardRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'reduced') return;
+    const context = gsap.context(() => {
+      gsap.fromTo(cardRef.current, { y: 16, opacity: 0.5, scale: 0.98 }, { y: 0, opacity: 1, scale: 1, duration: document.documentElement.dataset.motion === 'fast' ? 0.18 : 0.38, ease: 'power3.out', clearProps: 'all' });
+    });
+    return () => context.revert();
+  }, []);
   const [editing, setEditing] = useState(false);
   const [topic, setTopic] = useState(entry.topic);
   const [notes, setNotes] = useState(entry.notes || '');
@@ -39,7 +52,7 @@ export default function EntryCard({ entry, onDelete, onChanged }) {
   }
 
   async function handleRemoveImage(imageId) {
-    if (!window.confirm('Remove this image?')) return;
+    if (!(await confirm({ title: 'Remove this image?', description: 'This image will be removed from your journal. Your notes and other images will stay.', subject: entry.topic, confirmLabel: 'Remove image' }))) return;
     setBusy(true);
     setError('');
     try {
@@ -81,7 +94,7 @@ export default function EntryCard({ entry, onDelete, onChanged }) {
     return (
       <form
         onSubmit={handleSave}
-        className="space-y-4 rounded-2xl bg-white p-5 shadow-sm ring-2 ring-indigo-200"
+        className="journal-entry editing-entry space-y-4"
       >
         <div>
           <label className="block text-sm font-medium text-slate-700">Topic</label>
@@ -138,9 +151,10 @@ export default function EntryCard({ entry, onDelete, onChanged }) {
                     type="button"
                     disabled={busy}
                     onClick={() => handleRemoveImage(img.id)}
+                    aria-label="Remove image"
                     className="absolute -right-1 -top-1 h-6 w-6 rounded-full bg-red-500 text-xs text-white disabled:opacity-60"
                   >
-                    ×
+                    &times;
                   </button>
                 </div>
               ))}
@@ -188,56 +202,10 @@ export default function EntryCard({ entry, onDelete, onChanged }) {
     );
   }
 
-  const single = entry.images.length === 1;
-
-  return (
-    <article className="rounded-2xl bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="break-words text-lg font-semibold text-slate-800">
-          {entry.topic}
-        </h3>
-        <div className="flex shrink-0 gap-3 text-sm">
-          <button
-            onClick={startEdit}
-            className="text-indigo-600 hover:text-indigo-800"
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => onDelete(entry.id)}
-            className="text-red-500 hover:text-red-700"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-
-      {entry.notes && (
-        <p className="mt-2 whitespace-pre-wrap break-words text-slate-600">
-          {entry.notes}
-        </p>
-      )}
-
-      {entry.images.length > 0 && (
-        <div
-          className={`mt-4 grid gap-2 ${
-            single ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'
-          }`}
-        >
-          {entry.images.map((img) => (
-            <a key={img.id} href={img.url} target="_blank" rel="noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={img.url}
-                alt=""
-                className={`w-full rounded-lg object-cover ${
-                  single ? 'max-h-72' : 'h-32'
-                }`}
-              />
-            </a>
-          ))}
-        </div>
-      )}
-    </article>
-  );
+  return <article ref={cardRef} className={`journal-entry journal-styled-card card-tone-${String(entry.id).split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % 4}`}>
+    <JournalCardContent entry={entry} author={author} actions={<>
+      <button type="button" onClick={startEdit} className="journal-edit" aria-label={`Edit ${entry.topic}`}><Icon name="edit" size={15}/>Edit</button>
+      <button type="button" onClick={() => onDelete(entry.id)} className="journal-delete" aria-label={`Delete ${entry.topic}`}><Icon name="trash" size={15}/>Delete</button>
+    </>} />
+  </article>;
 }

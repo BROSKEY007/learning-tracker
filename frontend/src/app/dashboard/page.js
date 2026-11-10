@@ -6,6 +6,10 @@ import { api } from '@/lib/api';
 import { getToken, clearToken } from '@/lib/auth';
 import EntryForm from '@/components/EntryForm';
 import EntryCard from '@/components/EntryCard';
+import WorkspaceShell from '@/components/WorkspaceShell';
+import { useConfirm } from '@/components/ConfirmationProvider';
+import Link from 'next/link';
+import Icon from '@/components/Icon';
 
 function groupByDate(entries) {
   const groups = [];
@@ -31,13 +35,16 @@ function formatDate(dateStr) {
   return dateStr === today ? `Today · ${pretty}` : pretty;
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ mode = 'browse' }) {
+  const writing = mode === 'write';
+  const confirm = useConfirm();
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [pageError, setPageError] = useState('');
   const [search, setSearch] = useState('');
+  const [month, setMonth] = useState('all');
   const [query, setQuery] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -99,7 +106,7 @@ export default function DashboardPage() {
   }, [router, query, reloadKey]);
 
   async function handleDelete(id) {
-    if (!window.confirm('Delete this entry and its images?')) return;
+    if (!(await confirm({ title: 'Delete this journal?', description: 'This journal and its images will be permanently deleted. This cannot be undone.', subject: entries.find(entry => entry.id === id)?.topic, confirmLabel: 'Delete journal' }))) return;
     try {
       await api(`/entries/${id}`, { method: 'DELETE' });
       setEntries((current) => current.filter((e) => e.id !== id));
@@ -120,45 +127,37 @@ export default function DashboardPage() {
 
   if (!user) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-4 text-slate-500">
+      <main className="loading-page" role="status">
         {pageError || 'Loading...'}
       </main>
     );
   }
 
-  const groups = groupByDate(entries);
+  const filteredEntries = entries.filter(entry => month === 'all' || entry.entry_date.slice(5, 7) === month);
+  const groups = groupByDate(filteredEntries);
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
-      <header className="sticky top-0 z-10 bg-white shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <h1 className="text-lg font-bold text-indigo-600">Learning Tracker</h1>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-600">Hi, {user.name}</span>
-            <button
-              onClick={handleLogout}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
-            >
-              Log out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <section className="mx-auto max-w-3xl space-y-8 px-4 py-8">
-        <EntryForm onCreated={reload} />
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">Your entries</h2>
+    <WorkspaceShell user={user} writing={writing} onLogout={handleLogout}>
+      <div className="page-heading journal-heading">
+        <div><h1>{writing ? 'A new discovery' : 'Learning journal'}</h1><p>{writing ? 'Write it down. Come back to it. Make it yours.' : 'Your notes, ideas, and small breakthroughs. All in one place.'}</p></div>
+        <div className="heading-actions">{!writing && <Link className="primary-button" href="/dashboard/write"><Icon name="plus" size={16}/>New journal</Link>}</div>
+      </div>
+      {writing ? <section className="journal-body write-view"><EntryForm onCreated={() => { reload(); router.push('/dashboard'); }} /></section> : <section className="journal-body browse-view">
+        <div className="entries-heading" id="entries">
+          <h2>Entries <span className="count-badge">{filteredEntries.length}</span></h2>
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search topics and notes..."
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:w-72"
+            className="entry-search" aria-label="Search topics and notes"
           />
         </div>
 
+        <div className="month-filter" role="group" aria-label="Filter journals by month">
+          <button type="button" aria-pressed={month === 'all'} onClick={() => setMonth('all')}>All</button>
+          {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((label, index) => { const value = String(index + 1).padStart(2, '0'); return <button type="button" key={label} aria-pressed={month === value} onClick={() => setMonth(value)}>{label}</button>; })}
+        </div>
         {pageError && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
             {pageError}
@@ -168,22 +167,23 @@ export default function DashboardPage() {
         {!loaded ? (
           <p className="text-center text-slate-500">Loading entries...</p>
         ) : groups.length === 0 ? (
-          <p className="text-center text-slate-500">
-            {query
-              ? `No entries match "${query}"`
-              : 'No entries yet. Write what you learned today!'}
+          <p className="empty-state">
+            {query || month !== 'all'
+              ? 'No journals match these filters. Try another month or search.'
+              : 'No journals yet. Choose Write journal in the sidebar to share what you learned.'}
           </p>
         ) : (
           groups.map((group) => (
-            <div key={group.date}>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <div key={group.date} className="timeline-row">
+              <h2 className="timeline-date">
                 {formatDate(group.date)}
               </h2>
-              <div className="space-y-4">
+              <div className="timeline-cards">
                 {group.items.map((entry) => (
                   <EntryCard
                     key={entry.id}
                     entry={entry}
+                    author={user.name}
                     onDelete={handleDelete}
                     onChanged={reload}
                   />
@@ -192,7 +192,7 @@ export default function DashboardPage() {
             </div>
           ))
         )}
-      </section>
-    </main>
+      </section>}
+    </WorkspaceShell>
   );
 }

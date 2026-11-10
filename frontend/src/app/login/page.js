@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Icon from '@/components/Icon';
 import { api } from '@/lib/api';
 import { setToken } from '@/lib/auth';
 
@@ -34,8 +35,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-sky-50 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+    <main className="auth-page">
+      <div className="auth-card">
+        <div className="auth-brand"><Icon name="book" size={22}/><span>Learning Tracker</span></div>
         <h1 className="text-2xl font-bold text-slate-800">Welcome back</h1>
         <p className="mt-1 text-sm text-slate-500">
           Log in to see what you learned.
@@ -77,7 +79,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            className="primary-button auth-submit"
           >
             {loading ? 'Logging in...' : 'Log in'}
           </button>
